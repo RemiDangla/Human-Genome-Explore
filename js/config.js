@@ -6,5 +6,5 @@ window.GENOME_CONFIG = {
   //   • Static hosting + a serverless function ... 'https://your-function.example.com/api'
   // The genome viewer + AlphaFold protein structure work regardless of this setting;
   // only the Claude-generated text summaries need a server (to hold the API key).
-  summaryApi: 'api',
+  summaryApi: 'https://human-genome-explore.vercel.app/api',
 };
