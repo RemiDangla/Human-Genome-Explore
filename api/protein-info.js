@@ -13,11 +13,15 @@ import { MongoClient } from 'mongodb';
 
 const MODEL = 'claude-opus-4-8';
 const SYSTEM =
-  'You are a molecular biologist writing brief reference notes about human proteins ' +
-  'for a genome browser. Summarize only well-established, UniProt/textbook-level knowledge. ' +
-  'Be concise and factual; if a protein is poorly characterized, say so plainly. Do NOT ' +
-  'fabricate specific statistics, structures, residue numbers, or citations. Respond with ' +
-  'ONLY the summary prose — no preamble, no headings, no markdown, no reasoning.';
+  'You write brief, accurate reference notes about human proteins for a genome browser. ' +
+  'Use only well-established, UniProt/textbook-level knowledge; if a protein is poorly ' +
+  'characterized, say so. Do NOT fabricate statistics, structures, residue numbers, or citations. ' +
+  'Return EXACTLY two sections separated by a line containing only "###":\n' +
+  'First section — PLAIN: 2-3 sentences for a curious non-scientist. No jargon; explain in ' +
+  'everyday terms what the protein does and why it matters (e.g. its role in health/disease).\n' +
+  'Second section — EXPERT: 3-4 sentences for a molecular biologist (molecular function, ' +
+  'localization/pathway, and well-established disease associations).\n' +
+  'Output only the two sections and the "###" separator — no labels, headings, markdown, or reasoning.';
 
 const ALLOWED = new Set([
   'https://remidangla.github.io',
@@ -50,7 +54,7 @@ export default async function handler(req, res){
     const col = await getCollection();
     if (col){
       const cached = await col.findOne({ _id: key });
-      if (cached){ res.status(200).json({ ...cached, cached: true }); return; }
+      if (cached && cached.technical){ res.status(200).json({ ...cached, cached: true }); return; }
     }
 
     if (!process.env.ANTHROPIC_API_KEY){
@@ -58,18 +62,17 @@ export default async function handler(req, res){
       return;
     }
     const client = new Anthropic();
-    const user =
-      `Protein: gene ${symbol || '?'}, UniProt ${acc || '?'}, Homo sapiens. ` +
-      'In 3-4 sentences (<~90 words) describe (1) its molecular function, ' +
-      '(2) where/when it acts (tissue, subcellular localization, or pathway), and ' +
-      '(3) its biomedical significance or well-established disease associations.';
+    const user = `Human protein: gene ${symbol || '?'}, UniProt ${acc || '?'}. Write the two sections.`;
     const msg = await client.messages.create({
-      model: MODEL, max_tokens: 512, system: SYSTEM,
+      model: MODEL, max_tokens: 900, system: SYSTEM,
       messages: [{ role: 'user', content: user }],
     });
     const text = msg.content.filter(b => b.type === 'text').map(b => b.text).join('').trim();
+    const parts = text.split(/^\s*###\s*$/m).map(s => s.trim()).filter(Boolean);
+    const simple = parts[0] || text;
+    const technical = parts[1] || parts[0] || text;
 
-    const entry = { _id: key, symbol, accession: acc, summary: text, model: MODEL };
+    const entry = { _id: key, symbol, accession: acc, simple, technical, model: MODEL };
     if (col) await col.updateOne({ _id: key }, { $set: entry }, { upsert: true });
     res.status(200).json({ ...entry, cached: false });
   } catch (e){

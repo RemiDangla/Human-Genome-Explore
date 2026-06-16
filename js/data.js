@@ -6,7 +6,7 @@ import { reverseComplement, translate } from './genome.js';
 
 // Datasets live under data/<assembly>/ so the viewer can A/B reference genomes.
 export const ASSEMBLIES = { hg38: 'hg38', t2t: 'T2T-CHM13v2.0' };
-let ASSEMBLY = 'hg38';
+let ASSEMBLY = 't2t';            // default to the complete telomere-to-telomere genome
 const dataUrl = (file) => `data/${ASSEMBLY}/${file}`;
 const SEQ_FILE = 'chr21.seq';
 

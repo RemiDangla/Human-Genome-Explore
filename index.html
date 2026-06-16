@@ -30,7 +30,7 @@
       <button data-gene="DYRK1A">DYRK1A</button>
       <button data-gene="RUNX1">RUNX1</button>
       <span class="dim" style="margin-left:10px">assembly:</span>
-      <button id="assembly-toggle" title="Switch reference assembly (hg38 ↔ T2T-CHM13)">hg38</button>
+      <button id="assembly-toggle" title="Switch reference assembly (hg38 ↔ T2T-CHM13)">T2T</button>
     </nav>
   </header>
 
@@ -84,6 +84,10 @@
   <div id="protein-panel" class="hidden">
     <div id="pp-info">
       <div class="pp-info-head">Protein role</div>
+      <div id="pp-info-mode" class="pp-seg">
+        <button data-mode="simple" class="active">Plain</button>
+        <button data-mode="technical">Expert</button>
+      </div>
       <div id="pp-info-text">Click ℹ to generate a summary.</div>
       <div class="pp-info-note">⚠ AI-generated (Claude) · verify against primary sources</div>
     </div>

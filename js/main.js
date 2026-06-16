@@ -220,6 +220,7 @@ function setup(){
     spinBtn: document.getElementById('pp-spin'),
     infoText: document.getElementById('pp-info-text'),
     infoToggle: document.getElementById('pp-info-toggle'),
+    infoModeEl: document.getElementById('pp-info-mode'),
   });
   overlayCanvas.addEventListener('dblclick', (ev) => {
     if (ev.offsetY < 130) return;          // ignore the minimap / ruler strip

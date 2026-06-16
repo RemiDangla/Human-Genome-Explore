@@ -34,17 +34,29 @@ async function fetchAlphaFoldPdb(acc){
 }
 
 export class ProteinViewer {
-  constructor({ panel, viewport, title, status, closeBtn, spinBtn, infoText, infoToggle }){
+  constructor({ panel, viewport, title, status, closeBtn, spinBtn, infoText, infoToggle, infoModeEl }){
     this.panel = panel; this.viewport = viewport;
     this.title = title; this.status = status; this.spinBtn = spinBtn;
-    this.infoText = infoText; this.infoToggle = infoToggle;
+    this.infoText = infoText; this.infoToggle = infoToggle; this.infoModeEl = infoModeEl;
     this.viewer = null;
     this.open = false; this.loaded = false; this.pending = null;
     this.spinning = true; this.infoLoadedFor = null;
+    this.infoMode = 'simple'; this.infoData = null;   // 'simple' (Plain) | 'technical' (Expert)
     this.symbol = null; this.accession = null; this.resCount = 0;
     closeBtn.addEventListener('click', () => this.close());
     if (spinBtn) spinBtn.addEventListener('click', () => this.toggleSpin());
     if (infoToggle) infoToggle.addEventListener('click', () => this.toggleInfo());
+    if (infoModeEl) infoModeEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-mode]');
+      if (btn) this.setInfoMode(btn.dataset.mode);
+    });
+  }
+
+  setInfoMode(mode){
+    this.infoMode = mode;
+    if (this.infoModeEl) for (const b of this.infoModeEl.querySelectorAll('button'))
+      b.classList.toggle('active', b.dataset.mode === mode);
+    if (this.infoData) this.infoText.textContent = this.infoData[mode] || this.infoData.technical || this.infoData.simple || '';
   }
 
   toggleInfo(){
@@ -59,19 +71,24 @@ export class ProteinViewer {
     const want = this.accession || this.symbol;
     if (this.infoLoadedFor === want) return;     // already shown for this protein
     this.infoLoadedFor = want;
+    this.infoData = null;
     const base = window.GENOME_CONFIG && window.GENOME_CONFIG.summaryApi;
     if (!base){     // static deployment with no backend — summaries need a server-side key
       this.infoText.textContent = 'AI summaries aren’t available in this deployment — they need a server holding an Anthropic API key.';
       this.infoLoadedFor = null;
       return;
     }
-    this.infoText.textContent = 'Generating summary…';
+    this.infoText.textContent = 'Generating summaries…';
     try {
       const r = await fetch(`${base}/protein-info?symbol=${encodeURIComponent(this.symbol)}`
                             + `&uniprot=${encodeURIComponent(this.accession || '')}`);
       const j = await r.json();
-      if (j.summary){ this.infoText.textContent = j.summary; }
-      else { this.infoText.textContent = j.message || j.error || 'No summary available.'; this.infoLoadedFor = null; }
+      if (j.simple || j.technical || j.summary){
+        this.infoData = { simple: j.simple || j.summary || '', technical: j.technical || j.summary || '' };
+        this.setInfoMode(this.infoMode);          // render the current tier
+      } else {
+        this.infoText.textContent = j.message || j.error || 'No summary available.'; this.infoLoadedFor = null;
+      }
     } catch (e){
       this.infoText.textContent = 'Summary unavailable (no backend reachable).'; this.infoLoadedFor = null;
     }

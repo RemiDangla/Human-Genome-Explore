@@ -79,6 +79,10 @@ html,body{ margin:0; height:100%; overflow:hidden; background:
   border-right:1px solid var(--line); font-size:12px; line-height:1.55; }
 #protein-panel.info-open #pp-info{ display:flex; }
 .pp-info-head{ font-size:10px; text-transform:uppercase; letter-spacing:1.2px; color:var(--accent); margin-bottom:8px; }
+.pp-seg{ display:flex; gap:0; margin-bottom:9px; border:1px solid var(--line); border-radius:7px; overflow:hidden; }
+.pp-seg button{ flex:1; background:none; border:none; color:var(--dim); font-size:11px;
+  padding:5px 0; cursor:pointer; }
+.pp-seg button.active{ background:rgba(124,198,255,.16); color:var(--txt); }
 #pp-info-text{ flex:1; color:#dde4ee; overflow-y:auto; }
 .pp-info-note{ margin-top:10px; font-size:10px; color:var(--dim); border-top:1px solid var(--line); padding-top:7px; line-height:1.4; }
 #pp-info-toggle.active{ color:var(--accent); }
