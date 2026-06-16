@@ -11,6 +11,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { MongoClient } from 'mongodb';
 
+export const maxDuration = 60;   // allow Opus generation up to 60s (Vercel Hobby max)
+
 const MODEL = 'claude-opus-4-8';
 const SYSTEM =
   'You write brief, accurate reference notes about human proteins for a genome browser. ' +
