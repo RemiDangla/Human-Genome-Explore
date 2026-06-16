@@ -63,13 +63,40 @@ Deep links work too: `.../genome-earth/#chr21:31659778` (SOD1 start) or `#APP`.
 - **Data licensing:** RefSeq (public domain), UCSC tracks (open), AlphaFold
   (CC-BY-4.0). Fine to host; attribute AlphaFold.
 
-## Phase 2 — re-enable AI summaries (later)
-The summaries need a tiny backend holding `ANTHROPIC_API_KEY` (the browser must
-never see the key). Plan:
-1. Deploy a serverless function (Vercel / Netlify / Cloudflare Worker) that
-   implements `GET /protein-info?symbol=&uniprot=` — same logic as
-   `handle_protein_info` in `server.py` — using your **MongoDB Atlas** cluster
-   as the cache (in place of `protein_info.json`).
-2. Add the function's CORS allow-origin for your Pages URL.
-3. Set `summaryApi` in `js/config.js` to the function's base URL and redeploy
-   the static site.
+## Phase 2 — AI protein summaries via a Vercel function
+
+The summaries need a server holding `ANTHROPIC_API_KEY` (the browser must never
+see it). The static site stays on GitHub Pages; we add **one Vercel function**
+just for `GET /api/protein-info`. Files are already in the repo:
+`api/protein-info.js`, `package.json`, `.vercelignore` (Vercel deploys only the
+function, not the 92 MB of data).
+
+1. **Deploy the function.** Go to [vercel.com](https://vercel.com) → sign in with
+   GitHub → **Add New… → Project** → import `Human-Genome-Explore`. Framework
+   preset **Other**, leave build/output empty. Add **Environment Variables**:
+   - `ANTHROPIC_API_KEY` = `sk-ant-…` (required)
+   - `MONGODB_URI` = `mongodb+srv://…` (optional — enables caching; works without)
+   Click **Deploy**. Note the production domain, e.g. `human-genome-explore.vercel.app`.
+
+2. **MongoDB Atlas (optional, for caching).** In Atlas: create a DB user, and
+   under **Network Access** allow `0.0.0.0/0` (Vercel functions have dynamic IPs —
+   use a strong DB password). Copy the SRV connection string into `MONGODB_URI`.
+   The function uses db `genome_earth`, collection `protein_info` (auto-created).
+
+3. **Test the function:**
+   `https://<your>.vercel.app/api/protein-info?symbol=SOD1&uniprot=P00441`
+   → should return JSON with a `summary`.
+
+4. **Point the site at it.** Edit `js/config.js`:
+   ```js
+   window.GENOME_CONFIG = { summaryApi: 'https://<your>.vercel.app/api' };
+   ```
+   Commit + push. GitHub Pages redeploys (~1 min); the ℹ panel now shows real
+   summaries. CORS in the function already allows the Pages origin
+   (`https://remidangla.github.io`); change `ALLOWED` / set `ALLOWED_ORIGIN` if
+   your Pages URL differs.
+
+**Cost control:** each protein costs ~$0.005 once, then it's cached (in Mongo, or
+forever-fresh if you skip Mongo). CORS limits casual browser abuse, but the
+endpoint is public — for a shared link, consider a rate limit or a lighter model
+(`claude-haiku-4-5`) via the `MODEL` constant in `api/protein-info.js`.

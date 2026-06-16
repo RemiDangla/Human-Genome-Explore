@@ -1,0 +1,10 @@
+{
+  "name": "human-genome-explore-api",
+  "private": true,
+  "type": "module",
+  "description": "Serverless function for Genome Earth's AI protein-role summaries (Claude).",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.2",
+    "mongodb": "^7.3.0"
+  }
+}

@@ -1,0 +1,13 @@
+# The Vercel project hosts ONLY the /api function — the static site + data stay
+# on GitHub Pages. Exclude everything the function doesn't need so the Vercel
+# deploy is tiny and never hits size limits.
+data/
+js/
+css/
+index.html
+start.bat
+server.py
+preprocess.py
+preprocess_t2t.py
+*.md
+.nojekyll
