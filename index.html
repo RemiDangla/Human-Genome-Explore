@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Genome Earth — hg38 chr21</title>
+<link rel="stylesheet" href="css/style.css" />
+<script src="js/vendor/gsap.min.js"></script>
+<script src="js/vendor/3Dmol-min.js"></script>
+<script type="importmap">
+{ "imports": { "three": "./js/vendor/three.module.js" } }
+</script>
+</head>
+<body>
+  <div id="app"></div>
+  <canvas id="overlay"></canvas>
+
+  <!-- top bar -->
+  <header id="topbar">
+    <div class="brand">🧬 <b>Genome&nbsp;Earth</b> <span class="dim">hg38 · chr21</span></div>
+    <div class="searchwrap">
+      <input id="search" placeholder="Gene symbol (SOD1) or coordinate (chr21:31,659,769)…" autocomplete="off" />
+      <button id="go">Go</button>
+      <div id="gene-suggest" class="hidden"></div>
+    </div>
+    <nav class="chips">
+      <span class="dim">jump:</span>
+      <button data-gene="SOD1">SOD1</button>
+      <button data-gene="APP">APP</button>
+      <button data-gene="DYRK1A">DYRK1A</button>
+      <button data-gene="RUNX1">RUNX1</button>
+      <span class="dim" style="margin-left:10px">assembly:</span>
+      <button id="assembly-toggle" title="Switch reference assembly (hg38 ↔ T2T-CHM13)">hg38</button>
+    </nav>
+  </header>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="tier" id="hud-tier">Chromosome</div>
+    <div class="row"><span id="hud-pos">chr21</span></div>
+    <div class="row dim" id="hud-span">—</div>
+    <div class="row gene" id="hud-gene">—</div>
+  </div>
+
+  <!-- zoom controls -->
+  <div id="zoomctl">
+    <button id="zoom-in"  title="Zoom in">+</button>
+    <button id="zoom-out" title="Zoom out">−</button>
+    <button id="reset"    title="Whole chromosome">⤢</button>
+  </div>
+
+  <!-- legend -->
+  <div id="legend">
+    <button id="legend-toggle" title="Show/hide legend">legend ▾</button>
+    <div id="legend-body">
+    <div class="lg-sec"><b>Chromosome bands (Giemsa)</b>
+      <span><i style="background:#e9edf2"></i>gneg · gene-rich</span><span><i style="background:#969fab"></i>gpos · gene-poor</span>
+      <span><i style="background:#c0392b"></i>acen · centromere</span><span><i style="background:#8fb8d8"></i>gvar</span>
+      <span><i style="background:#5fb3a3"></i>stalk · rDNA</span>
+    </div>
+    <div class="lg-sec"><b>Bases</b>
+      <span><i style="background:#3ddc84"></i>A</span><span><i style="background:#ff5c5c"></i>T</span>
+      <span><i style="background:#ffb13d"></i>G</span><span><i style="background:#4d9dff"></i>C</span>
+    </div>
+    <div class="lg-sec"><b>Features</b>
+      <span><i style="background:#ffd54a"></i>CDS</span><span><i style="background:#56c2c2"></i>5′UTR</span>
+      <span><i style="background:#3a8f8f"></i>3′UTR</span><span><i style="background:#9b8cff"></i>nc-exon</span>
+      <span><i style="background:#3b4250"></i>intron</span>
+    </div>
+    <div class="lg-sec"><b>Amino acids</b>
+      <span><i style="background:#f0b54a"></i>hydrophobic</span><span><i style="background:#74cc8a"></i>polar</span>
+      <span><i style="background:#ff6b6b"></i>acidic</span><span><i style="background:#5da9ff"></i>basic</span>
+      <span><i style="background:#c792ea"></i>special</span>
+    </div>
+    <div class="hint">scroll = zoom · drag = pan · click the ideogram to jump</div>
+    </div>
+  </div>
+
+  <div id="flash"></div>
+
+  <script src="js/config.js"></script>
+
+  <!-- protein "street view" -->
+  <div id="protein-panel" class="hidden">
+    <div id="pp-info">
+      <div class="pp-info-head">Protein role</div>
+      <div id="pp-info-text">Click ℹ to generate a summary.</div>
+      <div class="pp-info-note">⚠ AI-generated (Claude) · verify against primary sources</div>
+    </div>
+    <div id="pp-main">
+      <div class="pp-head">
+        <span id="pp-title">Protein</span>
+        <span class="pp-actions">
+          <button id="pp-info-toggle" title="About this protein (AI summary)">ℹ</button>
+          <button id="pp-spin" title="Pause rotation">⏸</button>
+          <button id="pp-close" title="Close">✕</button>
+        </span>
+      </div>
+      <div id="pp-viewport"></div>
+      <div id="pp-status">double-click a coding gene to fold it</div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

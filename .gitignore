@@ -1,0 +1,14 @@
+# Local caches / downloads — not needed for the deployed static site
+data/raw/
+data/raw_t2t/
+data/structures/
+data/protein_info.json
+data/uniprot_map.json
+server.log
+__pycache__/
+*.pyc
+.claude/
+
+# Keep: index.html, css/, js/, .nojekyll, and the per-assembly datasets:
+#   data/hg38/chr21.{seq,meta.json,genes.json}
+#   data/t2t/chr21.{seq,meta.json,genes.json}
