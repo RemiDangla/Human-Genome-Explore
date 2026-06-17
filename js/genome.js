@@ -46,6 +46,9 @@ export function aaColor(aa){ return AA_CLASS_COLOR[AA_CLASS[aa] || 'special']; }
 
 // --- Nucleotides ---------------------------------------------------------
 export const BASE_COLOR = { A:'#3ddc84', T:'#ff5c5c', G:'#ffb13d', C:'#4d9dff' };
+// RNA palette: A/G/C as in DNA; uracil (U) gets a distinct rose so the T→U
+// transcription switch reads at a glance against the DNA strand below it.
+export const RNA_BASE_COLOR = { A:'#3ddc84', U:'#ff6f91', G:'#ffb13d', C:'#4d9dff' };
 const COMPLEMENT = { A:'T', T:'A', G:'C', C:'G', N:'N', a:'t', t:'a', g:'c', c:'g', n:'n' };
 
 export function complement(b){ return COMPLEMENT[b] || 'N'; }

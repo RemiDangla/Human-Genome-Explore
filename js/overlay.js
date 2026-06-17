@@ -3,7 +3,7 @@
 // so labels sit exactly on the helix. Lanes fade in/out per zoom tier.
 
 import {
-  stainColor, BASE_COLOR, FEATURE_COLOR, aaColor, AA_3LETTER,
+  stainColor, BASE_COLOR, RNA_BASE_COLOR, FEATURE_COLOR, aaColor, AA_3LETTER,
   makeFeatureClassifier, complement, isRepeat, fmtPos, fmtBp,
 } from './genome.js';
 import { baseAt } from './data.js';
@@ -37,6 +37,7 @@ export class Overlay {
     this.drawRuler(s);
     if (s.op.geneTrack > 0.01) this.drawGeneTrack(s);
     if (s.op.sequence > 0.01) this.drawSequence(s);
+    if (s.op.rna > 0.01) this.drawRnaTrack(s);
     if (s.op.codon > 0.01) this.drawCodonTrack(s);
     this.drawCrosshair(s);
   }
@@ -227,6 +228,58 @@ export class Overlay {
     ctx.restore();
   }
 
+  // --- transcribed RNA track ---------------------------------------------
+  // The middle layer of the central dogma: DNA → RNA → protein. Shows the
+  // sense-strand sequence with T→U, on the same side as the strand that
+  // encodes it (so it sits between that DNA strand and the protein). Exonic
+  // bases are the mature transcript (solid, on a faint exon chip); intronic
+  // bases are pre-mRNA that gets spliced out (faded). Renders for ANY active
+  // transcript, so non-coding RNA genes — which have no protein track — still
+  // appear here.
+  drawRnaTrack(s){
+    if (!s.seqWin || !s.activeTx) return;
+    const tx = s.activeTx;
+    const ctx = this.ctx, cy = this.height / 2, op = s.op.rna;
+    const minus = tx.strand === '-';
+    const bw = 1 / s.bpPerPx;
+    const rnaY = minus ? cy + 112 : cy - 112;       // between the sense DNA strand and the protein
+    const classifier = s.classifier || (() => 'intergenic');
+    const i0 = Math.max(0, Math.floor(s.viewStart) - 1);
+    const i1 = Math.min(s.meta.length - 1, Math.ceil(s.viewEnd) + 1);
+    ctx.save();
+    const fs = Math.max(9, Math.min(bw * 0.8, 26));
+    ctx.font = `${fs}px ui-monospace, monospace`;
+    ctx.textAlign = 'center';
+    for (let p = i0; p <= i1; p++){
+      if (p < tx.txStart || p >= tx.txEnd) continue;  // only the transcribed span
+      const x = this.sx(p + 0.5);
+      if (x < -bw || x > this.width + bw) continue;
+      const raw = baseAt(s.seqWin, p);
+      if (!raw) continue;
+      const fc = classifier(p);
+      const intron = fc === 'intron';
+      const up = raw.toUpperCase();
+      const sense = minus ? complement(up) : up;     // template→transcript: sense strand sequence
+      const rna = sense === 'T' ? 'U' : sense;        // ...with T replaced by U
+      if (!intron){                                   // mature-transcript chip behind exonic bases
+        ctx.globalAlpha = op * 0.20;
+        ctx.fillStyle = FEATURE_COLOR[fc] || '#9b8cff';
+        ctx.fillRect(x - bw / 2, rnaY - fs * 0.8, bw, fs * 1.6);
+      }
+      ctx.globalAlpha = op * (intron ? 0.22 : (isRepeat(raw) ? 0.6 : 1));
+      ctx.fillStyle = RNA_BASE_COLOR[rna] || '#9aa3af';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(rna, x, rnaY);
+    }
+    // track label + direction
+    ctx.globalAlpha = op * 0.75; ctx.fillStyle = '#b6a9ff';
+    ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    const dir = minus ? "3'←5' (− strand)" : "5'→3' (+ strand)";
+    const kind = tx.coding ? 'pre-mRNA → mRNA' : 'non-coding RNA';
+    ctx.fillText(`${kind}  ${dir} · introns spliced (faded)`, 8, rnaY - fs * 0.8 - 6);
+    ctx.restore();
+  }
+
   // --- amino-acid translation track --------------------------------------
   drawCodonTrack(s){
     if (!s.translation || !s.activeTx) return;
@@ -235,7 +288,8 @@ export class Overlay {
     const minus = s.activeTx.strand === '-';
     // put the protein next to the strand that encodes it: above the top (+)
     // strand for a +strand gene, below the bottom (−) strand for a −strand gene
-    const aaY = minus ? cy + 132 : cy - 132;
+    // (pushed out past the RNA track, which sits at cy±112)
+    const aaY = minus ? cy + 168 : cy - 168;
     const { codonToPositions, protein, codons } = s.translation;
     ctx.save(); ctx.globalAlpha = op;
     ctx.textAlign = 'center';

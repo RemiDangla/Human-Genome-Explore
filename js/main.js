@@ -62,6 +62,7 @@ function opacities(){
     // overview (too many transcripts) and faded once individual bases dominate
     geneTrack: (1 - smoothstep(2.5e6, 5.0e6, sp)) * (1 - smoothstep(120, 600, bw) * 0.6),
     sequence:  smoothstep(5, 10, bw),                 // nucleotide letters
+    rna:       smoothstep(6, 11, bw),                  // transcribed RNA (DNA→RNA→protein middle layer)
     codon:     smoothstep(8, 13, bw),                 // amino-acid track (appears soon after bases)
   };
 }
