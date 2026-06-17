@@ -61,11 +61,14 @@ export class HelixView {
 
     // condensed-chromosome coil (the zoomed-out overview): a variable-pitch
     // double strand along X with a focus+context fisheye centred on the view.
+    // Each strand is a thin ribbon (Mesh) so its on-screen thickness can grow
+    // as it straightens and pushes off the sides during the hand-off to bases.
     this.coilGroup = new THREE.Group();
     this.scene.add(this.coilGroup);
-    const cmat = () => new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0 });
-    this.coilA = new THREE.Line(new THREE.BufferGeometry(), cmat());
-    this.coilB = new THREE.Line(new THREE.BufferGeometry(), cmat());
+    const cmat = () => new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true,
+                                                     opacity: 0, side: THREE.DoubleSide });
+    this.coilA = new THREE.Mesh(new THREE.BufferGeometry(), cmat());
+    this.coilB = new THREE.Mesh(new THREE.BufferGeometry(), cmat());
     for (const o of [this.coilA, this.coilB]) o.frustumCulled = false;
     this.coilGroup.add(this.coilA, this.coilB);
     this._coilArrays = null; this._acen = null;
@@ -216,12 +219,19 @@ export class HelixView {
 
     const N = 2600, L = s.chromLength;
     if (!this._coilArrays){
-      const mk = () => ({ pos: new Float32Array((N + 1) * 3), col: new Float32Array((N + 1) * 3) });
+      const V = (N + 1) * 2;            // two edge vertices per centreline point (a ribbon)
+      const mk = () => ({ pos: new Float32Array(V * 3), col: new Float32Array(V * 3) });
       this._coilArrays = { a: mk(), b: mk() };
-      for (const [line, arr] of [[this.coilA, this._coilArrays.a], [this.coilB, this._coilArrays.b]]){
-        line.geometry.setAttribute('position', new THREE.BufferAttribute(arr.pos, 3));
-        line.geometry.setAttribute('color', new THREE.BufferAttribute(arr.col, 3));
-        line.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e9);
+      const idx = new Uint32Array(N * 6);
+      for (let i = 0; i < N; i++){
+        const t0 = 2 * i, b0 = 2 * i + 1, t1 = 2 * i + 2, b1 = 2 * i + 3, o = i * 6;
+        idx[o] = t0; idx[o + 1] = b0; idx[o + 2] = t1; idx[o + 3] = b0; idx[o + 4] = b1; idx[o + 5] = t1;
+      }
+      for (const [mesh, arr] of [[this.coilA, this._coilArrays.a], [this.coilB, this._coilArrays.b]]){
+        mesh.geometry.setAttribute('position', new THREE.BufferAttribute(arr.pos, 3));
+        mesh.geometry.setAttribute('color', new THREE.BufferAttribute(arr.col, 3));
+        mesh.geometry.setIndex(new THREE.BufferAttribute(idx.slice(), 1));
+        mesh.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e9);
       }
     }
     if (!this._acen){
@@ -268,14 +278,17 @@ export class HelixView {
     // so the colored base pairs phase in right between the widening wires. Away
     // from the focus the strands keep their full helical winding (the tight coil).
     const RAIL = 62;                          // matches the straight-ladder rail in bakeHelix
+    const HW = 1.2 + pushProg * 6;            // wire half-thickness: thickens as it pushes/straightens
     const col = new THREE.Color();
     for (let i = 0; i <= N; i++){
       const u = i * du, f = foc[i], th = theta[i];
       let x = this.width / 2 + ((cumG[i] - gu0) / total) * xspan;
-      x += (x >= this.width / 2 ? 1 : -1) * (1 - f) * pushProg * this.width;   // slide context off-screen
+      x += (x >= this.width / 2 ? 1 : -1) * (1 - f) * pushProg * this.width * 1.8;  // slide context far off-screen
       const dip = 1 - 0.62 * Math.exp(-(((u - this._acen.u) / (this._acen.w * 0.9)) ** 2));
       const R = Rbase * dip;
-      const st = FS * f;                      // local straighten: 0 (coil) -> 1 (flat rails)
+      // straighten the focus always, then globally as the coil pushes off → the
+      // on-screen wires flatten into rails before the bases phase in.
+      const st = Math.max(FS * f, pushProg);
       const ca = Math.cos(th), sa = Math.sin(th);
       const yA = (1 - st) * (R * ca) + st * RAIL,  zA = (1 - st) * (R * sa);
       const yB = (1 - st) * (-R * ca) - st * RAIL, zB = (1 - st) * (-R * sa);
@@ -286,11 +299,15 @@ export class HelixView {
       const shA = (0.55 + 0.45 * (zA * invR * 0.5 + 0.5)) * bright;
       const shB = (0.55 + 0.45 * (zB * invR * 0.5 + 0.5)) * bright;
       col.set(stainColor(bandAt(s.bands, u * L)));
-      const o = i * 3;
-      A.pos[o] = x; A.pos[o + 1] = yA; A.pos[o + 2] = zA;
-      B.pos[o] = x; B.pos[o + 1] = yB; B.pos[o + 2] = zB;
-      A.col[o] = col.r * shA; A.col[o + 1] = col.g * shA; A.col[o + 2] = col.b * shA;
-      B.col[o] = col.r * shB; B.col[o + 1] = col.g * shB; B.col[o + 2] = col.b * shB;
+      const ar = col.r * shA, ag = col.g * shA, ab = col.b * shA;
+      const br = col.r * shB, bg = col.g * shB, bb = col.b * shB;
+      const o = 6 * i;                        // two edge vertices per centreline point
+      A.pos[o] = x; A.pos[o + 1] = yA + HW; A.pos[o + 2] = zA;
+      A.pos[o + 3] = x; A.pos[o + 4] = yA - HW; A.pos[o + 5] = zA;
+      B.pos[o] = x; B.pos[o + 1] = yB + HW; B.pos[o + 2] = zB;
+      B.pos[o + 3] = x; B.pos[o + 4] = yB - HW; B.pos[o + 5] = zB;
+      A.col[o] = ar; A.col[o + 1] = ag; A.col[o + 2] = ab;  A.col[o + 3] = ar; A.col[o + 4] = ag; A.col[o + 5] = ab;
+      B.col[o] = br; B.col[o + 1] = bg; B.col[o + 2] = bb;  B.col[o + 3] = br; B.col[o + 4] = bg; B.col[o + 5] = bb;
     }
     this.coilA.geometry.attributes.position.needsUpdate = true;
     this.coilA.geometry.attributes.color.needsUpdate = true;
