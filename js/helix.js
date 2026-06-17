@@ -239,6 +239,9 @@ export class HelixView {
     // ramping to 1 as you zoom in (center unwinds + magnifies)
     const FS = 1 - smoothstep(2e6, 40e6, span);
     const Aexp = Math.min(600, Math.max(2, (L / span) * 0.6)) * FS;     // focus magnification: grows on zoom
+    // just before the coil hands off to the bases, slide the off-focus coils
+    // outward off the left/right edges (so the sides leave before the fade).
+    const pushProg = 1 - smoothstep(7000, 14000, span);
     const TURNS = 200;                                                  // total turns when fully condensed
     const Rbase = Math.min(this.width, this.height) * 0.11;
     const margin = 40, xspan = this.width - 2 * margin;
@@ -267,7 +270,8 @@ export class HelixView {
     const col = new THREE.Color();
     for (let i = 0; i <= N; i++){
       const u = i * du, f = foc[i], th = theta[i];
-      const x = this.width / 2 + ((cumG[i] - gu0) / total) * xspan;
+      let x = this.width / 2 + ((cumG[i] - gu0) / total) * xspan;
+      x += (x >= this.width / 2 ? 1 : -1) * (1 - f) * pushProg * this.width;   // slide context off-screen
       const dip = 1 - 0.62 * Math.exp(-(((u - this._acen.u) / (this._acen.w * 0.9)) ** 2));
       const R = Rbase * dip;
       const st = FS * f;                      // local straighten: 0 (coil) -> 1 (flat rails)
