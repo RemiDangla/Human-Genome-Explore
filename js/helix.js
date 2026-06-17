@@ -252,7 +252,7 @@ export class HelixView {
     // slide the off-focus coils outward off the left/right edges as you zoom in
     // (begins ~30 kb, complete by ~8 kb) so the sides leave gradually, well
     // before the coil hands off to the bases.
-    const pushProg = 1 - smoothstep(8000, 30000, span);
+    const pushProg = 1 - smoothstep(8000, 45000, span);
     const TURNS = 200;                                                  // total turns when fully condensed
     const Rbase = Math.min(this.width, this.height) * 0.11;
     const margin = 40, xspan = this.width - 2 * margin;
