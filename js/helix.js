@@ -233,6 +233,9 @@ export class HelixView {
         mesh.geometry.setIndex(new THREE.BufferAttribute(idx.slice(), 1));
         mesh.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e9);
       }
+      // centreline scratch (x is shared by both strands; y/z + colour per strand)
+      const f1 = () => new Float32Array(N + 1), f3 = () => new Float32Array((N + 1) * 3);
+      this._coilTmp = { x: f1(), yA: f1(), zA: f1(), yB: f1(), zB: f1(), cA: f3(), cB: f3() };
     }
     if (!this._acen){
       const ac = s.bands.filter(b => b.stain === 'acen');
@@ -278,7 +281,10 @@ export class HelixView {
     // so the colored base pairs phase in right between the widening wires. Away
     // from the focus the strands keep their full helical winding (the tight coil).
     const RAIL = 62;                          // matches the straight-ladder rail in bakeHelix
-    const HW = 1.2 + pushProg * 6;            // wire half-thickness: thickens as it pushes/straightens
+    // wire half-thickness: a thin crisp line at the whole-chromosome view, swelling
+    // as the coil pushes off / straightens into rails near the base-pair tier.
+    const HW = 1.0 + pushProg * 6;
+    const T = this._coilTmp;
     const col = new THREE.Color();
     for (let i = 0; i <= N; i++){
       const u = i * du, f = foc[i], th = theta[i];
@@ -299,13 +305,33 @@ export class HelixView {
       const shA = (0.55 + 0.45 * (zA * invR * 0.5 + 0.5)) * bright;
       const shB = (0.55 + 0.45 * (zB * invR * 0.5 + 0.5)) * bright;
       col.set(stainColor(bandAt(s.bands, u * L)));
-      const ar = col.r * shA, ag = col.g * shA, ab = col.b * shA;
-      const br = col.r * shB, bg = col.g * shB, bb = col.b * shB;
-      const o = 6 * i;                        // two edge vertices per centreline point
-      A.pos[o] = x; A.pos[o + 1] = yA + HW; A.pos[o + 2] = zA;
-      A.pos[o + 3] = x; A.pos[o + 4] = yA - HW; A.pos[o + 5] = zA;
-      B.pos[o] = x; B.pos[o + 1] = yB + HW; B.pos[o + 2] = zB;
-      B.pos[o + 3] = x; B.pos[o + 4] = yB - HW; B.pos[o + 5] = zB;
+      T.x[i] = x; T.yA[i] = yA; T.zA[i] = zA; T.yB[i] = yB; T.zB[i] = zB;
+      const c = i * 3;
+      T.cA[c] = col.r * shA; T.cA[c + 1] = col.g * shA; T.cA[c + 2] = col.b * shA;
+      T.cB[c] = col.r * shB; T.cB[c + 1] = col.g * shB; T.cB[c + 2] = col.b * shB;
+    }
+
+    // pass 3: extrude each strand into a constant-width ribbon by offsetting ±HW
+    // PERPENDICULAR to the curve's on-screen (x,y) tangent. (Offsetting in Y alone
+    // collapses to nothing wherever the coil runs vertically — which is most of
+    // the condensed view.) Depth z is kept on the centreline for shading.
+    for (let i = 0; i <= N; i++){
+      const ip = i > 0 ? i - 1 : 0, in_ = i < N ? i + 1 : N;
+      const o = 6 * i, c = i * 3;
+      // strand A
+      let tx = T.x[in_] - T.x[ip], ty = T.yA[in_] - T.yA[ip];
+      let len = Math.hypot(tx, ty) || 1;
+      let px = (-ty / len) * HW, py = (tx / len) * HW;
+      A.pos[o] = T.x[i] + px; A.pos[o + 1] = T.yA[i] + py; A.pos[o + 2] = T.zA[i];
+      A.pos[o + 3] = T.x[i] - px; A.pos[o + 4] = T.yA[i] - py; A.pos[o + 5] = T.zA[i];
+      // strand B
+      tx = T.x[in_] - T.x[ip]; ty = T.yB[in_] - T.yB[ip];
+      len = Math.hypot(tx, ty) || 1;
+      px = (-ty / len) * HW; py = (tx / len) * HW;
+      B.pos[o] = T.x[i] + px; B.pos[o + 1] = T.yB[i] + py; B.pos[o + 2] = T.zB[i];
+      B.pos[o + 3] = T.x[i] - px; B.pos[o + 4] = T.yB[i] - py; B.pos[o + 5] = T.zB[i];
+      const ar = T.cA[c], ag = T.cA[c + 1], ab = T.cA[c + 2];
+      const br = T.cB[c], bg = T.cB[c + 1], bb = T.cB[c + 2];
       A.col[o] = ar; A.col[o + 1] = ag; A.col[o + 2] = ab;  A.col[o + 3] = ar; A.col[o + 4] = ag; A.col[o + 5] = ab;
       B.col[o] = br; B.col[o + 1] = bg; B.col[o + 2] = bb;  B.col[o + 3] = br; B.col[o + 4] = bg; B.col[o + 5] = bb;
     }
