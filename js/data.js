@@ -71,6 +71,20 @@ export function baseAt(win, pos){
   return (i >= 0 && i < win.seq.length) ? win.seq[i] : null;
 }
 
+// ---- Non-coding RNA info (static, pre-generated) ------------------------
+// { SYMBOL: {simple, technical, source} }. Shared across assemblies (keyed by
+// gene symbol), built offline by build_rna_info.py. Loaded lazily on first use.
+let rnaInfoMap = null, rnaInfoPromise = null;
+export function loadRnaInfo(){
+  if (rnaInfoMap) return Promise.resolve(rnaInfoMap);
+  if (!rnaInfoPromise){
+    rnaInfoPromise = fetch('data/rna_info.json')
+      .then(r => r.json())
+      .then(m => { rnaInfoMap = m; return m; });
+  }
+  return rnaInfoPromise;
+}
+
 // ---- Spliced transcript (mature RNA) ------------------------------------
 // Assemble the spliced RNA for ANY transcript (coding or non-coding): the
 // concatenated exon sequence, strand-corrected to 5'→3', with T→U. Fetches

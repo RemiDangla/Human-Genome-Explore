@@ -6,7 +6,7 @@
 // Worker) and drawn as an arc diagram: the sequence on a baseline with a
 // semicircle joining every base pair. Fully self-contained — no external API.
 
-import { getSplicedRna } from './data.js';
+import { getSplicedRna, loadRnaInfo } from './data.js';
 import { RNA_BASE_COLOR } from './genome.js';
 
 const ARC_COLOR = { GC: '#4d9dff', AU: '#3ddc84', GU: '#c792ea' };  // by pair type
@@ -18,16 +18,63 @@ function pairKind(a, b){
 }
 
 export class RnaView {
-  constructor({ panel, canvas, title, status, closeBtn }){
+  constructor({ panel, canvas, title, status, closeBtn, infoText, infoToggle, infoModeEl, infoHead }){
     this.panel = panel; this.canvas = canvas; this.title = title; this.status = status;
+    this.infoText = infoText; this.infoToggle = infoToggle; this.infoModeEl = infoModeEl;
+    this.infoHead = infoHead;
     this.ctx = canvas.getContext('2d');
     this.dpr = Math.min(window.devicePixelRatio, 2);
     this.open = false; this.token = 0; this.foldToken = -1;
     this.worker = null; this.last = null;
+    this.infoMode = 'simple'; this.infoData = null; this.infoLoadedFor = null;
     closeBtn.addEventListener('click', () => this.close());
+    // these elements are shared with the protein viewer; only act in RNA mode
+    if (infoToggle) infoToggle.addEventListener('click', () => {
+      if (this.panel.classList.contains('rna-mode')) this.toggleInfo();
+    });
+    if (infoModeEl) infoModeEl.addEventListener('click', (e) => {
+      if (!this.panel.classList.contains('rna-mode')) return;
+      const btn = e.target.closest('button[data-mode]');
+      if (btn) this.setInfoMode(btn.dataset.mode);
+    });
   }
 
   get isOpen(){ return this.open; }
+
+  // ---- info panel (reuses the shared #pp-info column) --------------------
+  setInfoMode(mode){
+    this.infoMode = mode;
+    if (this.infoModeEl) for (const b of this.infoModeEl.querySelectorAll('button'))
+      b.classList.toggle('active', b.dataset.mode === mode);
+    if (this.infoData) this.infoText.textContent = this.infoData[mode] || this.infoData.simple || '';
+  }
+
+  toggleInfo(){
+    const open = this.panel.classList.toggle('info-open');
+    if (this.infoToggle) this.infoToggle.classList.toggle('active', open);
+    if (open) this.loadInfo();
+  }
+
+  async loadInfo(){
+    if (!this.tx) return;
+    const sym = this.tx.symbol;
+    if (this.infoLoadedFor === sym) return;
+    this.infoLoadedFor = sym; this.infoData = null;
+    this.infoText.textContent = 'Loading…';
+    try {
+      const map = await loadRnaInfo();
+      const e = map[sym.toUpperCase()];
+      if (e && (e.simple || e.technical)){
+        this.infoData = { simple: e.simple || e.technical, technical: e.technical || e.simple };
+        this.setInfoMode(this.infoMode);
+      } else {
+        this.infoText.textContent = 'No curated functional information is available for this RNA.';
+        this.infoLoadedFor = null;
+      }
+    } catch (err){
+      this.infoText.textContent = 'Info unavailable.'; this.infoLoadedFor = null;
+    }
+  }
 
   ensureWorker(){
     if (!this.worker){
@@ -45,6 +92,9 @@ export class RnaView {
     document.body.classList.add('pp-open');
     this.title.textContent = `${tx.symbol} · ${tx.id} (ncRNA)`;
     this.status.textContent = 'assembling spliced transcript…';
+    if (this.infoHead) this.infoHead.textContent = 'RNA role';
+    this.infoLoadedFor = null;
+    if (this.panel.classList.contains('info-open')) this.loadInfo();
     this.clearCanvas();
 
     let rna;

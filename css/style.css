@@ -97,8 +97,7 @@ html,body{ margin:0; height:100%; overflow:hidden; background:
 #pp-rna-canvas{ display:none; width:360px; height:360px; background:#0c1016; }
 #protein-panel.rna-mode #pp-viewport{ display:none; }
 #protein-panel.rna-mode #pp-rna-canvas{ display:block; }
-#protein-panel.rna-mode #pp-info-toggle,
-#protein-panel.rna-mode #pp-spin{ display:none; }
+#protein-panel.rna-mode #pp-spin{ display:none; }   /* ℹ stays (ncRNA role); spin is 3D-only */
 #pp-status{ padding:7px 12px; font-size:11px; color:var(--dim); border-top:1px solid var(--line);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 /* lift the zoom controls above the panel while it is open */

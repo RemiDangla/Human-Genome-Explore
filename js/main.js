@@ -224,6 +224,7 @@ function setup(){
     infoText: document.getElementById('pp-info-text'),
     infoToggle: document.getElementById('pp-info-toggle'),
     infoModeEl: document.getElementById('pp-info-mode'),
+    infoHead: document.getElementById('pp-info-head'),
   });
   rnaView = new RnaView({
     panel: document.getElementById('protein-panel'),
@@ -231,6 +232,10 @@ function setup(){
     title: document.getElementById('pp-title'),
     status: document.getElementById('pp-status'),
     closeBtn: document.getElementById('pp-close'),
+    infoText: document.getElementById('pp-info-text'),
+    infoToggle: document.getElementById('pp-info-toggle'),
+    infoModeEl: document.getElementById('pp-info-mode'),
+    infoHead: document.getElementById('pp-info-head'),
   });
   overlayCanvas.addEventListener('dblclick', (ev) => {
     if (ev.offsetY < 130) return;          // ignore the minimap / ruler strip

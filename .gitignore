@@ -14,6 +14,10 @@ __pycache__/
 .protein_batches/
 protein_targets.json
 
+# ncRNA-info build: keep the script + final data/rna_info.json, drop scratch
+.rna_batches/
+rna_targets.json
+
 # Keep: index.html, css/, js/, .nojekyll, and the per-assembly datasets:
 #   data/hg38/chr21.{seq,meta.json,genes.json}
 #   data/t2t/chr21.{seq,meta.json,genes.json}

@@ -34,10 +34,11 @@ async function fetchAlphaFoldPdb(acc){
 }
 
 export class ProteinViewer {
-  constructor({ panel, viewport, title, status, closeBtn, spinBtn, infoText, infoToggle, infoModeEl }){
+  constructor({ panel, viewport, title, status, closeBtn, spinBtn, infoText, infoToggle, infoModeEl, infoHead }){
     this.panel = panel; this.viewport = viewport;
     this.title = title; this.status = status; this.spinBtn = spinBtn;
     this.infoText = infoText; this.infoToggle = infoToggle; this.infoModeEl = infoModeEl;
+    this.infoHead = infoHead;
     this.viewer = null;
     this.open = false; this.loaded = false; this.pending = null;
     this.spinning = true; this.infoLoadedFor = null;
@@ -45,8 +46,12 @@ export class ProteinViewer {
     this.symbol = null; this.accession = null; this.resCount = 0;
     closeBtn.addEventListener('click', () => this.close());
     if (spinBtn) spinBtn.addEventListener('click', () => this.toggleSpin());
-    if (infoToggle) infoToggle.addEventListener('click', () => this.toggleInfo());
+    // info elements are shared with the RNA viewer; only act when NOT in RNA mode
+    if (infoToggle) infoToggle.addEventListener('click', () => {
+      if (!this.panel.classList.contains('rna-mode')) this.toggleInfo();
+    });
     if (infoModeEl) infoModeEl.addEventListener('click', (e) => {
+      if (this.panel.classList.contains('rna-mode')) return;
       const btn = e.target.closest('button[data-mode]');
       if (btn) this.setInfoMode(btn.dataset.mode);
     });
@@ -115,6 +120,7 @@ export class ProteinViewer {
     document.body.classList.add('pp-open');
     this.symbol = symbol;
     this.title.textContent = symbol;
+    if (this.infoHead) this.infoHead.textContent = 'Protein role';
     this.status.textContent = 'resolving UniProt…';
 
     if (!this.viewer){
