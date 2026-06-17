@@ -18,6 +18,7 @@ export async function loadAssembly(name){
   if (name) ASSEMBLY = name;
   seqCache.length = 0;
   translationCache.clear();
+  rnaCache.clear();
   state.meta  = await (await fetch(dataUrl('chr21.meta.json'))).json();
   state.genes = await (await fetch(dataUrl('chr21.genes.json'))).json();
   return state;
@@ -68,6 +69,31 @@ export async function getSequence(start, end){
 export function baseAt(win, pos){
   const i = pos - win.start;
   return (i >= 0 && i < win.seq.length) ? win.seq[i] : null;
+}
+
+// ---- Spliced transcript (mature RNA) ------------------------------------
+// Assemble the spliced RNA for ANY transcript (coding or non-coding): the
+// concatenated exon sequence, strand-corrected to 5'→3', with T→U. Fetches
+// each exon's bases separately so we never download huge intronic spans.
+// Cached by transcript id.
+const rnaCache = new Map();
+
+export async function getSplicedRna(tx){
+  if (!tx) return null;
+  if (rnaCache.has(tx.id)) return rnaCache.get(tx.id);
+
+  const exons = tx.exons.slice().sort((a, b) => a[0] - b[0]);
+  let genomicSeq = '';
+  for (const [a, b] of exons){
+    const win = await getSequence(a, b);
+    for (let p = a; p < b; p++) genomicSeq += (baseAt(win, p) || 'N');
+  }
+  genomicSeq = genomicSeq.toUpperCase();
+  const sense = tx.strand === '-' ? reverseComplement(genomicSeq) : genomicSeq;
+  const seq = sense.replace(/T/g, 'U');
+  const result = { seq, length: seq.length, strand: tx.strand };
+  rnaCache.set(tx.id, result);
+  return result;
 }
 
 // ---- Per-transcript translation -----------------------------------------

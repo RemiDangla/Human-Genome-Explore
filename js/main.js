@@ -5,6 +5,7 @@
 import { HelixView, pickActiveTranscript } from './helix.js';
 import { Overlay } from './overlay.js';
 import { ProteinViewer } from './protein.js';
+import { RnaView } from './rna.js';
 import { loadMeta, loadAssembly, getAssembly, ASSEMBLIES, state, getSequence, getTranslation } from './data.js';
 import { makeFeatureClassifier, aaColor, fmtPos, fmtBp } from './genome.js';
 
@@ -16,6 +17,7 @@ const overlayCanvas = document.getElementById('overlay');
 const helix = new HelixView(app);
 const overlay = new Overlay(overlayCanvas);
 let protein = null;                  // ProteinViewer, created in setup()
+let rnaView = null;                  // RnaView (non-coding 2D structure), created in setup()
 let proteinLock = null;              // { tx, translation } the panel is locked to
 let lastHighlightKey = '';
 
@@ -223,12 +225,24 @@ function setup(){
     infoToggle: document.getElementById('pp-info-toggle'),
     infoModeEl: document.getElementById('pp-info-mode'),
   });
+  rnaView = new RnaView({
+    panel: document.getElementById('protein-panel'),
+    canvas: document.getElementById('pp-rna-canvas'),
+    title: document.getElementById('pp-title'),
+    status: document.getElementById('pp-status'),
+    closeBtn: document.getElementById('pp-close'),
+  });
   overlayCanvas.addEventListener('dblclick', (ev) => {
     if (ev.offsetY < 130) return;          // ignore the minimap / ruler strip
     const bp = viewStart() + ev.offsetX * view.bpPerPx;
     const tx = pickActiveTranscript(state.genes, bp);
     if (!tx){ flash('no gene here to fold'); return; }
-    if (!tx.coding){ flash(`${tx.symbol} is non-coding — no protein`); return; }
+    if (!tx.coding){                        // non-coding RNA → fold + show 2D structure
+      if (protein.isOpen) protein.close();
+      rnaView.show(tx);
+      return;
+    }
+    if (rnaView.isOpen) rnaView.close();    // leaving RNA mode for a protein
     proteinLock = { tx, translation: null };
     lastHighlightKey = '';
     getTranslation(tx).then(t => { if (proteinLock && proteinLock.tx.id === tx.id) proteinLock.translation = t; });
@@ -273,6 +287,8 @@ function setup(){
 
   // debug hook (handy for headless screenshotting where rAF/GSAP are throttled)
   window.__genome = { view, setTargetInstant, state, helix, overlay, renderOnce: renderFrame,
+    get protein(){ return protein; }, get rnaView(){ return rnaView; },
+    pickActiveTranscript: (pos) => pickActiveTranscript(state.genes, pos),
     debug: () => ({ activeTx, translation, seqStart: seqWin && seqWin.start }) };
 
   frame();

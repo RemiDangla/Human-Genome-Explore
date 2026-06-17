@@ -111,7 +111,7 @@ export class ProteinViewer {
 
   async show(symbol){
     this.open = true; this.loaded = false; this.pending = null;
-    this.panel.classList.remove('hidden');
+    this.panel.classList.remove('hidden', 'rna-mode');   // leaving any RNA-mode view
     document.body.classList.add('pp-open');
     this.symbol = symbol;
     this.title.textContent = symbol;

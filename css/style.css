@@ -93,6 +93,12 @@ html,body{ margin:0; height:100%; overflow:hidden; background:
 .pp-actions button{ background:none; border:none; color:var(--dim); font-size:13px; cursor:pointer; padding:0 5px; line-height:1; }
 .pp-actions button:hover{ color:var(--txt); }
 #pp-viewport{ position:relative; width:360px; height:360px; background:#0c1016; }
+/* non-coding RNA mode: show the 2D arc-diagram canvas instead of the 3D viewer */
+#pp-rna-canvas{ display:none; width:360px; height:360px; background:#0c1016; }
+#protein-panel.rna-mode #pp-viewport{ display:none; }
+#protein-panel.rna-mode #pp-rna-canvas{ display:block; }
+#protein-panel.rna-mode #pp-info-toggle,
+#protein-panel.rna-mode #pp-spin{ display:none; }
 #pp-status{ padding:7px 12px; font-size:11px; color:var(--dim); border-top:1px solid var(--line);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 /* lift the zoom controls above the panel while it is open */
