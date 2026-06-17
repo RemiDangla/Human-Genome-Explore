@@ -259,20 +259,33 @@ export class HelixView {
     const i0 = Math.round(u0 * N), gu0 = cumG[i0], total = cumG[N] || 1;
 
     // pass 2: positions + cytoband colours (two antiparallel strands)
+    // At the focus the two strands DON'T collapse to the axis — they unwind into
+    // two flat parallel rails at ±RAIL (the nucleotide-helix ladder separation),
+    // so the colored base pairs phase in right between the widening wires. Away
+    // from the focus the strands keep their full helical winding (the tight coil).
+    const RAIL = 62;                          // matches the straight-ladder rail in bakeHelix
     const col = new THREE.Color();
     for (let i = 0; i <= N; i++){
       const u = i * du, f = foc[i], th = theta[i];
       const x = this.width / 2 + ((cumG[i] - gu0) / total) * xspan;
       const dip = 1 - 0.62 * Math.exp(-(((u - this._acen.u) / (this._acen.w * 0.9)) ** 2));
-      const r = Rbase * dip * (1 - 0.85 * FS * f);           // unwinds toward the axis at the focus
+      const R = Rbase * dip;
+      const st = FS * f;                      // local straighten: 0 (coil) -> 1 (flat rails)
       const ca = Math.cos(th), sa = Math.sin(th);
+      const yA = (1 - st) * (R * ca) + st * RAIL,  zA = (1 - st) * (R * sa);
+      const yB = (1 - st) * (-R * ca) - st * RAIL, zB = (1 - st) * (-R * sa);
+      // context (off-focus) fades faster than the focus as the whole coil fades
+      // out (op -> 0), so the side coils push off / disappear before the rails do.
+      const bright = f + (1 - f) * op;
+      const invR = R > 1e-6 ? 1 / R : 0;
+      const shA = (0.55 + 0.45 * (zA * invR * 0.5 + 0.5)) * bright;
+      const shB = (0.55 + 0.45 * (zB * invR * 0.5 + 0.5)) * bright;
       col.set(stainColor(bandAt(s.bands, u * L)));
       const o = i * 3;
-      A.pos[o] = x; A.pos[o + 1] = r * ca;  A.pos[o + 2] = r * sa;
-      B.pos[o] = x; B.pos[o + 1] = -r * ca; B.pos[o + 2] = -r * sa;
-      const sA = 0.55 + 0.45 * (sa * 0.5 + 0.5), sB = 0.55 + 0.45 * (-sa * 0.5 + 0.5);
-      A.col[o] = col.r * sA; A.col[o + 1] = col.g * sA; A.col[o + 2] = col.b * sA;
-      B.col[o] = col.r * sB; B.col[o + 1] = col.g * sB; B.col[o + 2] = col.b * sB;
+      A.pos[o] = x; A.pos[o + 1] = yA; A.pos[o + 2] = zA;
+      B.pos[o] = x; B.pos[o + 1] = yB; B.pos[o + 2] = zB;
+      A.col[o] = col.r * shA; A.col[o + 1] = col.g * shA; A.col[o + 2] = col.b * shA;
+      B.col[o] = col.r * shB; B.col[o + 1] = col.g * shB; B.col[o + 2] = col.b * shB;
     }
     this.coilA.geometry.attributes.position.needsUpdate = true;
     this.coilA.geometry.attributes.color.needsUpdate = true;
