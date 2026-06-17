@@ -5,9 +5,14 @@ data/structures/
 data/protein_info.json
 data/uniprot_map.json
 server.log
+warm_cache.log
 __pycache__/
 *.pyc
 .claude/
+
+# Protein-summary build: keep the script + final authored summaries, drop scratch
+.protein_batches/
+protein_targets.json
 
 # Keep: index.html, css/, js/, .nojekyll, and the per-assembly datasets:
 #   data/hg38/chr21.{seq,meta.json,genes.json}
