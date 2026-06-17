@@ -130,11 +130,11 @@ def cmd_bake():
             continue
         desc = t.get("description") or t["symbol"]
         info[key] = {
-            "simple": f"{t['symbol']} ({desc}) is a non-coding RNA. Its specific biological "
-                      "role is not well established in the current literature.",
+            "simple": "We know this non-coding RNA exists, but we don't really know what it "
+                      "does yet — it has no established function in the current literature.",
             "technical": f"{t['symbol']} ({desc}) is annotated as a non-coding RNA with no "
-                         "curated functional summary in NCBI Gene/Alliance. No molecular "
-                         "function, mechanism, or disease association can be reliably stated.",
+                         "curated functional summary in NCBI Gene/Alliance. Its molecular "
+                         "function, mechanism, and any disease association are currently unknown.",
             "source": "no curated annotation",
         }
 
@@ -144,11 +144,11 @@ def cmd_bake():
         if key in info:
             continue
         info[key] = {
-            "simple": f"{sym} is a predicted (computationally annotated) gene locus. Little is "
-                      "established about whether it produces a functional RNA, and it has no "
-                      "curated functional characterization.",
-            "technical": f"{sym} is a predicted, uncharacterized locus (RefSeq model prediction) "
-                         "with no curated functional annotation. Any function is unknown.",
+            "simple": "We know this non-coding RNA exists, but we don't really know what it "
+                      "does yet — it's a predicted gene with no established function so far.",
+            "technical": f"{sym} is a predicted, uncharacterized locus (RefSeq computational "
+                         "model) with no curated functional annotation. Whether it produces a "
+                         "functional RNA, and any molecular function, is currently unknown.",
             "source": "predicted locus",
         }
 
