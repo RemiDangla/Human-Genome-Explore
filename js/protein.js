@@ -179,6 +179,14 @@ export class ProteinViewer {
     else if (this.pending) this.pending.status = text;
   }
 
+  // Re-fit the WebGL canvas to its container (mobile sheet resize / orientation
+  // flip). 3Dmol reads the container's current size; the model stays centred.
+  resize(){
+    if (!this.viewer) return;
+    this.viewer.resize();
+    this.viewer.render();
+  }
+
   close(){
     this.open = false;
     if (this.viewer) this.viewer.spin(false);   // stop animating while hidden

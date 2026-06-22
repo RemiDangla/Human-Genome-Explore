@@ -107,3 +107,70 @@ body.pp-open #zoomctl{ bottom:462px; }
 #flash{ position:fixed; top:54px; left:50%; transform:translateX(-50%); z-index:9;
   background:rgba(20,26,34,.95); border:1px solid var(--line); color:var(--txt);
   padding:8px 16px; border-radius:8px; font-size:13px; opacity:0; pointer-events:none; }
+
+/* ==========================================================================
+   MOBILE / TOUCH LAYOUT
+   Gated to phones in either orientation (portrait phones key off width, short
+   landscape phones off height) so desktop and tablets are untouched. Two
+   selectors share a block via the grouped media query below.
+   - portrait : genome (top 50%) / protein sheet (bottom 50%)
+   - landscape: genome (left 60%) / protein panel (right 40%) — the topbar eats
+                vertical space, so we split horizontally to keep full height.
+   The "i" info panel slides OVER the 3D view in both (never beside it), so the
+   layout never widens and the WebGL/canvas viewer is never torn down.
+   ========================================================================== */
+@media (orientation: portrait) and (max-width: 640px),
+       (orientation: landscape) and (max-height: 540px){
+
+  /* --- top bar: keep to one compact row, scroll the preset chips --- */
+  #topbar{ gap:8px; padding:8px 10px; }
+  .brand b, .brand .dim{ display:none; }            /* keep just the 🧬 glyph */
+  .searchwrap{ max-width:none; min-width:0; }
+  #search{ font-size:16px; }                        /* ≥16px stops iOS input-focus zoom */
+  .chips{ flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; }
+  .chips::-webkit-scrollbar{ display:none; }
+  .chips .dim{ display:none; }                       /* drop "jump:" / "assembly:" labels */
+
+  /* --- HUD: compact pill under the top bar, over the genome region --- */
+  #hud{ left:8px; top:54px; bottom:auto; min-width:0; padding:6px 10px; }
+  #hud .row.dim{ display:none; }                     /* drop the "span across view" line */
+
+  /* --- legend: top-right, collapsed by default (JS adds .collapsed on touch) --- */
+  #legend{ top:54px; right:8px; max-height:60vh; overflow-y:auto; }
+
+  /* --- zoom: bigger touch targets --- */
+  #zoomctl{ right:8px; bottom:8px; }
+  #zoomctl button{ width:44px; height:44px; font-size:20px; }
+
+  /* --- protein / RNA panel becomes a sheet filling its region --- */
+  #protein-panel{ display:block; padding:0; box-shadow:0 -8px 40px rgba(0,0,0,.55); }
+  #pp-main{ width:100%; height:100%; display:flex; flex-direction:column; }
+  .pp-head{ height:44px; gap:8px; }
+  #pp-title{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pp-actions button{ font-size:18px; padding:6px 8px; }   /* finger-sized */
+  #pp-viewport, #pp-rna-canvas{ width:100%; height:auto; flex:1; }
+  #pp-status{ flex:0 0 auto; }
+
+  /* info panel slides OVER the 3D view (starts below the always-visible header) */
+  #pp-info{ position:absolute; left:0; right:0; top:44px; bottom:0; width:auto; z-index:5;
+    border-right:none; background:rgba(14,18,24,.98); }
+  #protein-panel.info-open #pp-info{ display:flex; }
+
+  /* while the sheet is open, the genome HUD/legend would sit behind it — hide
+     them (the sheet header shows the gene; the genome itself stays visible) */
+  body.pp-open #hud, body.pp-open #legend{ display:none; }
+}
+
+/* portrait: bottom sheet, 50 / 50 vertical split */
+@media (orientation: portrait) and (max-width: 640px){
+  #protein-panel{ left:0; right:0; bottom:0; top:50%;
+    border-radius:16px 16px 0 0; border-bottom:none; }
+  body.pp-open #zoomctl{ bottom:calc(50vh + 8px); right:8px; }   /* lift above the sheet */
+}
+
+/* landscape: right-docked panel below the top bar, 60 / 40 horizontal split */
+@media (orientation: landscape) and (max-height: 540px){
+  #protein-panel{ top:48px; bottom:0; right:0; left:60%;
+    border-radius:16px 0 0 16px; border-right:none; }
+  body.pp-open #zoomctl{ right:calc(40% + 8px); bottom:8px; }    /* keep left of the panel */
+}

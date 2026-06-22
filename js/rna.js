@@ -181,6 +181,13 @@ export class RnaView {
     ctx.fillText('Predicted topology · Nussinov base-pair maximization · not a thermodynamic fold', padX, 13);
   }
 
+  // Re-fit the arc diagram to the canvas's current size (mobile sheet resize /
+  // orientation flip). Re-runs the layout from the last fold result.
+  redraw(){
+    if (this.last) this.draw(this.last);
+    else this.clearCanvas();
+  }
+
   close(){
     this.open = false;
     this.panel.classList.add('hidden');

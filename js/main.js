@@ -194,24 +194,100 @@ function setup(){
     view.center = bpAtCursor - (mx - view.width / 2) * view.bpPerPx;
   }, { passive: false });
 
+  // Pan + zoom by pointer. One pointer = drag-pan (mouse or single finger);
+  // two pointers = pinch-to-zoom (touch). A quick single-finger double-tap
+  // zooms in toward the tap, or folds a gene if one is under it — the touch
+  // analogue of the desktop wheel-zoom / double-click handlers below.
+  const pointers = new Map();        // pointerId -> { x, y } in client coords
+  let pinch = null;                  // { dist, centerBp } while two fingers are down
   let dragging = false, lastX = 0;
+  let tapStart = null, lastTap = null;
+
+  const startPinch = () => {
+    const [a, b] = [...pointers.values()];
+    const rect = overlayCanvas.getBoundingClientRect();
+    const midX = (a.x + b.x) / 2 - rect.left;
+    pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y),
+              centerBp: viewStart() + midX * view.bpPerPx };
+  };
+
   overlayCanvas.addEventListener('pointerdown', (ev) => {
-    // click on the ideogram minimap = jump there
-    const r = overlay.ideoRect;
-    if (ev.offsetY >= r.y - 4 && ev.offsetY <= r.y + r.h + 4 && ev.offsetX >= r.x && ev.offsetX <= r.x + r.w){
-      const bp = ((ev.offsetX - r.x) / r.w) * state.meta.length;
-      flyTo(bp, view.bpPerPx, 0.8);
+    if (pointers.size === 0){
+      // click on the ideogram minimap = jump there
+      const r = overlay.ideoRect;
+      if (ev.offsetY >= r.y - 4 && ev.offsetY <= r.y + r.h + 4 && ev.offsetX >= r.x && ev.offsetX <= r.x + r.w){
+        const bp = ((ev.offsetX - r.x) / r.w) * state.meta.length;
+        flyTo(bp, view.bpPerPx, 0.8);
+        return;
+      }
+    }
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    overlayCanvas.setPointerCapture(ev.pointerId);
+    gsap.killTweensOf(view);
+    if (pointers.size === 1){
+      dragging = true; lastX = ev.clientX;
+      tapStart = { x: ev.clientX, y: ev.clientY, t: performance.now(),
+                   offsetX: ev.offsetX, offsetY: ev.offsetY, touch: ev.pointerType !== 'mouse' };
+    } else if (pointers.size === 2){
+      dragging = false; tapStart = null;       // hand off to pinch
+      startPinch();
+    }
+  });
+
+  overlayCanvas.addEventListener('pointermove', (ev) => {
+    if (!pointers.has(ev.pointerId)) return;
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    if (pinch && pointers.size >= 2){
+      const [a, b] = [...pointers.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      if (dist > 0){
+        const rect = overlayCanvas.getBoundingClientRect();
+        const midX = (a.x + b.x) / 2 - rect.left;
+        view.bpPerPx = clamp(view.bpPerPx * (pinch.dist / dist), view.minBpPerPx, view.maxBpPerPx);
+        view.center = pinch.centerBp - (midX - view.width / 2) * view.bpPerPx;  // keep the pinch point pinned
+        pinch.dist = dist;
+      }
       return;
     }
-    dragging = true; lastX = ev.clientX; overlayCanvas.setPointerCapture(ev.pointerId);
-    gsap.killTweensOf(view);
-  });
-  overlayCanvas.addEventListener('pointermove', (ev) => {
     if (!dragging) return;
     const dx = ev.clientX - lastX; lastX = ev.clientX;
     view.center -= dx * view.bpPerPx;
   });
-  overlayCanvas.addEventListener('pointerup', () => { dragging = false; });
+
+  const endPointer = (ev) => {
+    if (!pointers.has(ev.pointerId)) return;
+    pointers.delete(ev.pointerId);
+    try { overlayCanvas.releasePointerCapture(ev.pointerId); } catch (_){}
+    if (pointers.size < 2) pinch = null;
+    if (pointers.size === 1){                  // one finger left → resume panning with it
+      const [p] = [...pointers.values()];
+      dragging = true; lastX = p.x;
+    } else if (pointers.size === 0){
+      dragging = false;
+      maybeTap(ev);
+    }
+  };
+  overlayCanvas.addEventListener('pointerup', endPointer);
+  overlayCanvas.addEventListener('pointercancel', endPointer);
+
+  // double-tap detection (touch/pen only — mouse keeps the dblclick handler)
+  function maybeTap(ev){
+    const s = tapStart; tapStart = null;
+    if (!s || !s.touch) return;
+    const moved = Math.hypot(ev.clientX - s.x, ev.clientY - s.y);
+    if (moved > 12 || performance.now() - s.t > 300){ lastTap = null; return; }   // it was a drag, not a tap
+    const now = performance.now();
+    if (lastTap && now - lastTap.t < 320 && Math.hypot(s.x - lastTap.x, s.y - lastTap.y) < 28){
+      lastTap = null;
+      if (s.offsetY < 130) return;             // minimap / ruler strip
+      const bp = viewStart() + s.offsetX * view.bpPerPx;
+      const tx = pickActiveTranscript(state.genes, bp);
+      if (tx) foldGeneAt(tx);
+      else flyTo(bp, clamp(view.bpPerPx / 2.5, view.minBpPerPx, view.maxBpPerPx), 0.5);
+    } else {
+      lastTap = { x: s.x, y: s.y, t: now };
+    }
+  }
 
   // protein "street view": double-click a coding gene to fold it
   protein = new ProteinViewer({
@@ -237,11 +313,9 @@ function setup(){
     infoModeEl: document.getElementById('pp-info-mode'),
     infoHead: document.getElementById('pp-info-head'),
   });
-  overlayCanvas.addEventListener('dblclick', (ev) => {
-    if (ev.offsetY < 130) return;          // ignore the minimap / ruler strip
-    const bp = viewStart() + ev.offsetX * view.bpPerPx;
-    const tx = pickActiveTranscript(state.genes, bp);
-    if (!tx){ flash('no gene here to fold'); return; }
+  // Fold the gene at a genomic feature: coding → 3D protein, non-coding → 2D RNA.
+  // Shared by the desktop double-click and the touch double-tap.
+  function foldGeneAt(tx){
     if (!tx.coding){                        // non-coding RNA → fold + show 2D structure
       if (protein.isOpen) protein.close();
       rnaView.show(tx);
@@ -252,6 +326,14 @@ function setup(){
     lastHighlightKey = '';
     getTranslation(tx).then(t => { if (proteinLock && proteinLock.tx.id === tx.id) proteinLock.translation = t; });
     protein.show(tx.symbol);
+  }
+
+  overlayCanvas.addEventListener('dblclick', (ev) => {
+    if (ev.offsetY < 130) return;          // ignore the minimap / ruler strip
+    const bp = viewStart() + ev.offsetX * view.bpPerPx;
+    const tx = pickActiveTranscript(state.genes, bp);
+    if (!tx){ flash('no gene here to fold'); return; }
+    foldGeneAt(tx);
   });
 
   window.addEventListener('resize', onResize);
@@ -270,6 +352,20 @@ function setup(){
   document.getElementById('reset').addEventListener('click', () => flyTo(state.meta.length / 2, view.maxBpPerPx, 1.0));
   document.getElementById('legend-toggle').addEventListener('click',
     () => document.getElementById('legend').classList.toggle('collapsed'));
+  // start with the legend collapsed on touch devices (limited screen space)
+  if (window.matchMedia('(pointer: coarse)').matches)
+    document.getElementById('legend').classList.add('collapsed');
+
+  // The protein/RNA panel goes from a fixed desktop size to a fluid mobile sheet
+  // (and flips between portrait/landscape). Re-fit the 3D viewer / redraw the RNA
+  // canvas whenever the panel's box changes — covers open/close and orientation.
+  if (window.ResizeObserver){
+    const ro = new ResizeObserver(() => {
+      if (protein && protein.isOpen) protein.resize();
+      if (rnaView && rnaView.isOpen) rnaView.redraw();
+    });
+    ro.observe(document.getElementById('protein-panel'));
+  }
 
   // assembly A/B switch (hg38 <-> T2T-CHM13)
   const asmBtn = document.getElementById('assembly-toggle');
@@ -304,6 +400,9 @@ function onResize(){
   helix.resize(view.width, view.height);
   overlay.resize(view.width, view.height);
   view.maxBpPerPx = (state.meta.length / view.width) * 1.05;
+  // refit the protein/RNA sheet too (orientation flips change its box)
+  if (protein && protein.isOpen) protein.resize();
+  if (rnaView && rnaView.isOpen) rnaView.redraw();
 }
 
 function zoomBy(amount){
